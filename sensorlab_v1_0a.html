@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sensor Lab">
+<meta name="theme-color" content="#071324">
+<title>Sensor Lab</title>
+<link rel="apple-touch-icon" id="touchIcon" href="data:,">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+<style>
+:root{
+  --bg1:#071324;--bg2:#102540;--glass:rgba(255,255,255,.065);--glass2:rgba(255,255,255,.12);
+  --line:rgba(255,255,255,.13);--text:#EAF2FF;--muted:#8FA3BF;
+  --ice:#8AD9FF;--amber:#FFB84D;--mint:#74E3B5;--rose:#FF7A8A;
+  --num:ui-rounded,"SF Pro Rounded",-apple-system,system-ui,sans-serif;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg1);color:var(--text);font-family:var(--ui);-webkit-font-smoothing:antialiased;-webkit-user-select:none;user-select:none}
+body{min-height:100vh;overscroll-behavior:none}
+#bg{position:fixed;inset:-40px;z-index:-1;will-change:transform;
+  background:radial-gradient(110% 60% at 15% -5%,#21497a 0%,transparent 55%),
+             radial-gradient(80% 55% at 105% 35%,#1b3460 0%,transparent 60%),
+             radial-gradient(70% 50% at 0% 100%,#0f3a4a 0%,transparent 60%),
+             linear-gradient(180deg,var(--bg2),var(--bg1) 65%)}
+main{max-width:720px;margin:0 auto;padding:calc(var(--st) + 16px) 16px calc(var(--sb) + 28px)}
+.top{display:flex;align-items:center;justify-content:space-between;margin:0 2px 14px}
+h1{font-family:var(--num);font-weight:700;font-size:31px;letter-spacing:-.02em;margin:0}
+.chip{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:99px;background:var(--glass);border:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:#4f5f75;flex:none}
+.dot.on{background:var(--mint);box-shadow:0 0 8px var(--mint)}
+.dot.off{background:var(--rose)}
+.glass{background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(22px) saturate(140%);backdrop-filter:blur(22px) saturate(140%)}
+.hero{position:relative;border-radius:30px;height:min(54vh,420px);overflow:hidden}
+#heroCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#heroMsg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;color:var(--muted);font-size:14px}
+.heroBar{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px;align-items:stretch}
+.heroVal{flex:1;padding:9px 12px;border-radius:16px;background:rgba(7,19,36,.5);border:1px solid var(--line)}
+.heroVal b{display:block;font-family:var(--num);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.heroVal span{font-size:12px;color:var(--muted)}
+.btn{font:inherit;font-size:15px;font-weight:600;color:var(--text);background:var(--glass2);border:1px solid var(--line);border-radius:14px;padding:11px 14px;cursor:pointer}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--ice);color:#06223a;border-color:transparent}
+h2{font-size:17px;font-weight:600;margin:26px 4px 10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{position:relative;border-radius:20px;padding:13px 14px;min-height:110px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;text-align:left;color:inherit;font:inherit;width:100%}
+.tile.wide{grid-column:1/-1}
+.tile .t{display:flex;align-items:center;justify-content:space-between;font-size:14px;color:var(--muted);gap:6px}
+.tile .v{font-family:var(--num);font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1.15;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v small{font-size:14px;color:var(--muted);font-weight:500;margin-left:3px}
+.tile .s{font-size:12px;color:var(--muted);min-height:15px;margin-top:2px}
+.tile:active{transform:scale(.98)}
+.locked{border-radius:20px;padding:15px 16px;font-size:14px;color:var(--muted);line-height:1.55}
+.locked b{color:var(--text);font-weight:600}
+footer{text-align:center;color:#5d708c;font-size:12px;margin-top:26px}
+#gate{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:20px 16px calc(var(--sb) + 20px);background:rgba(4,10,20,.5)}
+#gate.hide{display:none}
+#gate .card{max-width:440px;width:100%;border-radius:26px;padding:22px;background:rgba(16,37,64,.82)}
+#gate h3{margin:0 0 6px;font-size:23px;font-family:var(--num)}
+#gate p{margin:0 0 16px;color:var(--muted);font-size:15px;line-height:1.45}
+#gate .btn{width:100%;padding:14px}
+#sheet{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;background:linear-gradient(180deg,#0d1f37,#071324 70%);padding:calc(var(--st) + 10px) 16px calc(var(--sb) + 14px)}
+#sheet.open{display:flex;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes up{from{transform:translateY(26px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){#sheet.open{animation:none}.tile:active,.btn:active{transform:none}}
+.sh{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 10px}
+.sh h3{margin:0;font-size:25px;font-family:var(--num)}
+#stage{position:relative;flex:1;min-height:0;border-radius:24px;overflow:hidden;touch-action:none}
+#stage canvas,#stage video{position:absolute;inset:0;width:100%;height:100%;display:block}
+#stage video{object-fit:cover}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:10px}
+.stat{padding:9px 12px;border-radius:16px}
+.stat b{display:block;font-family:var(--num);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat span{font-size:12px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);margin:10px 2px 0;line-height:1.45}
+.actions{display:flex;gap:8px;margin-top:10px}
+.actions:empty{display:none}
+.actions .btn{flex:1}
+.panel{position:absolute;inset:0;overflow:auto;padding:8px 18px 18px;-webkit-user-select:text;user-select:text}
+.row{display:flex;justify-content:space-between;gap:14px;padding:12px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.row span{color:var(--muted);flex:none}
+.row b{font-weight:600;text-align:right;word-break:break-word}
+.big{font-family:var(--num);font-size:34px;font-weight:700;margin:22px 0 6px}
+.lab{position:absolute;left:14px;bottom:14px;padding:10px 14px;border-radius:16px;background:rgba(7,19,36,.55);border:1px solid var(--line)}
+.lab b{font-family:var(--num);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<main>
+  <div class="top">
+    <h1>Sensor Lab</h1>
+    <div class="chip"><span class="dot" id="liveDot"></span><span id="liveTxt">bereit</span></div>
+  </div>
+
+  <section class="hero glass" aria-label="iPhone in 3D">
+    <canvas id="heroCanvas"></canvas>
+    <div id="heroMsg"></div>
+    <div class="heroBar">
+      <div class="heroVal"><b id="hTilt">–</b><span>Neigung</span></div>
+      <div class="heroVal"><b id="hHead">–</b><span>Kurs</span></div>
+      <button class="btn" id="hCenter">Zentrieren</button>
+    </div>
+  </section>
+
+  <h2>Bewegung</h2>
+  <div class="grid" id="gMove"></div>
+  <h2>Ort</h2>
+  <div class="grid" id="gPlace"></div>
+  <h2>Klang und Licht</h2>
+  <div class="grid" id="gSense"></div>
+  <h2>Gerät</h2>
+  <div class="grid" id="gDev"></div>
+
+  <h2>Im Browser gesperrt</h2>
+  <div class="locked glass">
+    Apple gibt diese Sensoren nur an native Apps frei (Mac mit Xcode nötig):
+    <b>LiDAR-Raumscan, AR, 3D-Gesichtsscan, Barometer, Näherungssensor, NFC, Bluetooth, Haptik, Taschenlampe</b>.
+    Den Rohwert des Umgebungslichtsensors gibt Apple überhaupt nicht frei; die Licht-Kachel misst deshalb über die Kamera.
+  </div>
+  <footer>Sensor Lab v1_0a</footer>
+</main>
+
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="sh"><h3 id="shTitle"></h3><button class="btn" id="shClose">Schließen</button></div>
+  <div id="stage" class="glass"></div>
+  <div class="stats" id="shStats"></div>
+  <div class="actions" id="shActions"></div>
+  <p class="note" id="shNote"></p>
+</div>
+
+<div id="gate">
+  <div class="card glass">
+    <h3>Sensoren aktivieren</h3>
+    <p>Safari fragt gleich nach Zugriff auf Bewegung und Ausrichtung. Standort, Mikrofon und Kamera werden erst abgefragt, wenn du die jeweilige Kachel öffnest.</p>
+    <button class="btn primary" id="gateBtn">Sensoren aktivieren</button>
+  </div>
+</div>
+<script type="module">
+const $ = s => document.querySelector(s);
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmt = (v, d = 0) => (v == null || !isFinite(v)) ? '–' : v.toFixed(d).replace('.', ',');
+const DIRS = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
+const dirName = h => DIRS[Math.round(h / 45) % 8];
+
+class Ring {
+  constructor(n) { this.a = new Float32Array(n); this.n = n; this.i = 0; this.len = 0; }
+  push(v) { this.a[this.i] = v; this.i = (this.i + 1) % this.n; if (this.len < this.n) this.len++; }
+  get(k) { return this.a[(this.i - this.len + k + this.n * 2) % this.n]; }
+  last() { return this.len ? this.get(this.len - 1) : 0; }
+  clear() { this.i = 0; this.len = 0; }
+}
+
+/* ---------- Zustand ---------- */
+const S = {
+  hasOri: false, hasMot: false, denied: false,
+  a: 0, b: 0, g: 0, alpha0: null, heading: null, headAcc: null,
+  u: { x: 0, y: 0, z: 1 },
+  ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0, ra: 0, rb: 0, rg: 0,
+  gNow: 1, gMax: 1, seis: 0, seisMax: 0,
+  steps: 0, stepUp: false, stepLp: 0, stepLast: 0, stepTimes: [], stepPulse: 0,
+  gps: false, gpsErr: null, kmh: 0, kmhMax: 0, dist: 0, alt: null, acc: null, lat: null, lon: null, lastPos: null, gpsT: 0,
+  fps: 0
+};
+const H = { gx: new Ring(240), gy: new Ring(240), gz: new Ring(240), seis: new Ring(300), gTrail: [], speed: new Ring(200), db: new Ring(200) };
+
+/* ---------- Bewegung & Ausrichtung ---------- */
+function onOri(e) {
+  if (e.alpha == null && e.beta == null) return;
+  S.hasOri = true;
+  S.a = e.alpha || 0; S.b = e.beta || 0; S.g = e.gamma || 0;
+  if (S.alpha0 == null) S.alpha0 = S.a;
+  if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0) {
+    S.heading = e.webkitCompassHeading; S.headAcc = e.webkitCompassAccuracy;
+  } else if (e.absolute) { S.heading = (360 - S.a) % 360; }
+  const cb = Math.cos(S.b * D2R), sb = Math.sin(S.b * D2R), sg = Math.sin(S.g * D2R), cg = Math.cos(S.g * D2R);
+  S.u = { x: -cb * sg, y: sb, z: cb * cg }; // Oben-Vektor im Gerätesystem
+}
+function onMot(e) {
+  const a = e.acceleration || {}, g = e.accelerationIncludingGravity || {}, r = e.rotationRate || {};
+  if (g.x == null && a.x == null && r.alpha == null) return;
+  S.hasMot = true;
+  S.gx = g.x || 0; S.gy = g.y || 0; S.gz = g.z || 0;
+  const gTot = Math.hypot(S.gx, S.gy, S.gz);
+  if (a.x != null) { S.ax = a.x; S.ay = a.y; S.az = a.z; }
+  else { S.ax = 0; S.ay = 0; S.az = gTot - 9.81; }
+  S.ra = r.alpha || 0; S.rb = r.beta || 0; S.rg = r.gamma || 0;
+  H.gx.push(S.rb); H.gy.push(S.rg); H.gz.push(S.ra);
+  S.gNow = gTot / 9.80665; if (S.gNow > S.gMax) S.gMax = S.gNow;
+  const mag = Math.hypot(S.ax, S.ay, S.az);
+  S.seis = mag; H.seis.push(mag); if (mag > S.seisMax) S.seisMax = mag;
+  H.gTrail.push([S.ax / 9.80665, S.ay / 9.80665]); if (H.gTrail.length > 40) H.gTrail.shift();
+  // Schritt-Schätzung
+  S.stepLp = S.stepLp * 0.8 + mag * 0.2;
+  const t = performance.now();
+  if (!S.stepUp && S.stepLp > 1.2) S.stepUp = true;
+  else if (S.stepUp && S.stepLp < 0.5) {
+    S.stepUp = false;
+    if (t - S.stepLast > 280) { S.steps++; S.stepLast = t; S.stepPulse = t; S.stepTimes.push(t); if (S.stepTimes.length > 40) S.stepTimes.shift(); }
+  }
+}
+async function enableMotion() {
+  const reqs = [];
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') reqs.push(DeviceMotionEvent.requestPermission());
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') reqs.push(DeviceOrientationEvent.requestPermission());
+  const res = await Promise.allSettled(reqs);
+  if (res.length && !res.some(r => r.status === 'fulfilled' && r.value === 'granted')) S.denied = true;
+  addEventListener('deviceorientation', onOri);
+  addEventListener('devicemotion', onMot);
+}
+
+/* ---------- GPS ---------- */
+function hav(a, b) {
+  const R = 6371000, dLa = (b.lat - a.lat) * D2R, dLo = (b.lon - a.lon) * D2R;
+  const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * D2R) * Math.cos(b.lat * D2R) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+function startGPS() {
+  if (S.gps) return;
+  if (!navigator.geolocation) { S.gpsErr = 'Standort nicht unterstützt'; return; }
+  S.gps = true; S.gpsErr = null;
+  navigator.geolocation.watchPosition(p => {
+    const c = p.coords, cur = { lat: c.latitude, lon: c.longitude, t: p.timestamp };
+    let v = (c.speed != null && c.speed >= 0) ? c.speed : null;
+    if (S.lastPos) {
+      const d = hav(S.lastPos, cur), dt = (cur.t - S.lastPos.t) / 1000;
+      if (c.accuracy < 30 && d > 2) S.dist += d;
+      if (v == null && dt > 0 && c.accuracy < 30) v = d / dt;
+    }
+    S.lastPos = cur; S.lat = c.latitude; S.lon = c.longitude; S.alt = c.altitude; S.acc = c.accuracy; S.gpsT = performance.now();
+    S.kmh = v != null ? v * 3.6 : 0; if (S.kmh > S.kmhMax) S.kmhMax = S.kmh;
+    H.speed.push(S.kmh); S.gpsErr = null;
+  }, err => { S.gpsErr = err.code === 1 ? 'Zugriff verweigert (Einstellungen > Safari > Standort)' : 'Kein GPS-Signal'; if (err.code === 1) S.gps = false; },
+  { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+
+/* ---------- Mikrofon ---------- */
+let A = {};
+const M = { db: null, dbMax: 0, dbSum: 0, dbN: 0, freq: null, note: '', cents: 0 };
+async function startMic() {
+  if (A.an) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(st), an = ctx.createAnalyser();
+    an.fftSize = 8192; an.smoothingTimeConstant = 0.2; src.connect(an);
+    await ctx.resume();
+    A = { ctx, st, an, td: new Float32Array(an.fftSize), fd: new Float32Array(an.frequencyBinCount) };
+    return true;
+  } catch (e) { A = { err: e.name === 'NotAllowedError' ? 'Mikrofon-Zugriff verweigert' : 'Mikrofon nicht verfügbar' }; return false; }
+}
+function stopMic() { if (A.st) A.st.getTracks().forEach(t => t.stop()); if (A.ctx) A.ctx.close(); A = {}; M.db = null; M.freq = null; }
+const NOTES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'H'];
+function readMic() {
+  if (!A.an) return;
+  A.an.getFloatTimeDomainData(A.td);
+  let s = 0; for (let i = 0; i < A.td.length; i++) s += A.td[i] * A.td[i];
+  const rms = Math.sqrt(s / A.td.length);
+  M.db = clamp(20 * Math.log10(rms + 1e-9) + 100, 0, 130);
+  if (M.db > M.dbMax) M.dbMax = M.db;
+  M.dbSum += Math.pow(10, M.db / 10); M.dbN++;
+  H.db.push(M.db);
+  A.an.getFloatFrequencyData(A.fd);
+  const binHz = A.ctx.sampleRate / A.an.fftSize, i0 = Math.ceil(60 / binHz), i1 = Math.floor(5000 / binHz);
+  let mi = i0; for (let i = i0; i <= i1; i++) if (A.fd[i] > A.fd[mi]) mi = i;
+  if (A.fd[mi] > -75) {
+    const a = A.fd[mi - 1], b = A.fd[mi], c = A.fd[mi + 1], den = a - 2 * b + c;
+    const p = den ? 0.5 * (a - c) / den : 0, f = (mi + p) * binHz;
+    const n = 12 * Math.log2(f / 440) + 69, nr = Math.round(n);
+    M.freq = f; M.note = NOTES[((nr % 12) + 12) % 12] + (Math.floor(nr / 12) - 1); M.cents = (n - nr) * 100;
+  } else M.freq = null;
+}
+
+/* ---------- Kamera ---------- */
+let CAM = { st: null, facing: 'environment', vid: null, cv: null, lum: null, lumMax: 0, lumMin: 100, err: null };
+async function startCam(facing) {
+  stopCam();
+  CAM.facing = facing || CAM.facing;
+  try {
+    CAM.st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: CAM.facing, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    CAM.vid.srcObject = CAM.st; await CAM.vid.play(); CAM.err = null; CAM.lumMax = 0; CAM.lumMin = 100;
+    return true;
+  } catch (e) { CAM.err = e.name === 'NotAllowedError' ? 'Kamera-Zugriff verweigert' : 'Kamera nicht verfügbar'; return false; }
+}
+function stopCam() { if (CAM.st) CAM.st.getTracks().forEach(t => t.stop()); CAM.st = null; CAM.lum = null; }
+function readCam() {
+  if (!CAM.st || !CAM.vid || CAM.vid.readyState < 2) return;
+  if (!CAM.cv) { CAM.cv = document.createElement('canvas'); CAM.cv.width = 48; CAM.cv.height = 36; CAM.cx = CAM.cv.getContext('2d', { willReadFrequently: true }); }
+  CAM.cx.drawImage(CAM.vid, 0, 0, 48, 36);
+  const d = CAM.cx.getImageData(0, 0, 48, 36).data; let s = 0;
+  for (let i = 0; i < d.length; i += 4) s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+  CAM.lum = s / (d.length / 4) / 255 * 100;
+  CAM.lumMax = Math.max(CAM.lumMax, CAM.lum); CAM.lumMin = Math.min(CAM.lumMin, CAM.lum);
+}
+
+/* ---------- Face ID (Passkey) ---------- */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const ub64 = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const FID = { avail: null, status: 'Bereit', detail: '', ok: null };
+if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable)
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(v => FID.avail = v).catch(() => FID.avail = false);
+else FID.avail = false;
+const webErr = e => e.name === 'NotAllowedError' ? 'Abgebrochen oder Zeit abgelaufen' : e.name === 'InvalidStateError' ? 'Passkey existiert bereits' : (e.message || e.name);
+async function faceRegister() {
+  try {
+    const c = await navigator.credentials.create({ publicKey: {
+      challenge: rnd(32), rp: { name: 'Sensor Lab' },
+      user: { id: rnd(16), name: 'sensor-lab', displayName: 'Sensor Lab' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'required' },
+      timeout: 60000, attestation: 'none' } });
+    store.set('sl-cred', b64u(c.rawId));
+    FID.ok = true; FID.status = 'Passkey angelegt'; FID.detail = 'Jetzt mit „Face ID prüfen“ testen.';
+  } catch (e) { FID.ok = false; FID.status = 'Nicht angelegt'; FID.detail = webErr(e); }
+  renderFace();
+}
+async function faceVerify() {
+  try {
+    const opt = { challenge: rnd(32), userVerification: 'required', timeout: 60000 };
+    const id = store.get('sl-cred');
+    if (id) opt.allowCredentials = [{ type: 'public-key', id: ub64(id), transports: ['internal', 'hybrid'] }];
+    const t0 = performance.now();
+    const a = await navigator.credentials.get({ publicKey: opt });
+    const fl = new Uint8Array(a.response.authenticatorData)[32];
+    FID.ok = !!(fl & 4); FID.status = FID.ok ? 'Erkannt' : 'Ohne Biometrie bestätigt';
+    FID.detail = 'Dauer bis zur Bestätigung: ' + fmt((performance.now() - t0) / 1000, 1) + ' s';
+  } catch (e) { FID.ok = false; FID.status = 'Nicht bestätigt'; FID.detail = webErr(e); }
+  renderFace();
+}
+function renderFace() {
+  const p = $('#facePanel'); if (!p) return;
+  const col = FID.ok == null ? 'var(--text)' : FID.ok ? 'var(--mint)' : 'var(--rose)';
+  p.innerHTML = `<div class="big" style="color:${col}">${FID.status}</div>
+    <div style="color:var(--muted);font-size:15px;min-height:20px">${FID.detail}</div>
+    <div class="row" style="margin-top:22px"><span>Face ID im Browser</span><b>${FID.avail == null ? 'wird geprüft' : FID.avail ? 'verfügbar' : 'nicht verfügbar'}</b></div>
+    <div class="row"><span>Passkey gespeichert</span><b>${store.get('sl-cred') ? 'ja' : 'nein'}</b></div>`;
+}
+
+/* ---------- 3D-iPhone ---------- */
+const HERO = { ok: false };
+async function initHero() {
+  let THREE;
+  try { THREE = await import('three'); }
+  catch (e) { const m = $('#heroMsg'); m.style.display = 'flex'; m.textContent = '3D-Ansicht braucht eine Internetverbindung beim ersten Laden.'; return; }
+  const cv = $('#heroCanvas');
+  const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  const scene = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  cam.position.set(0, 2.4, 5.6); cam.lookAt(0, 0.1, 0);
+  scene.add(new THREE.HemisphereLight(0xcfe9ff, 0x0b1a2e, 1.4));
+  const d1 = new THREE.DirectionalLight(0xffffff, 2.4); d1.position.set(3, 5, 4); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0x8ad9ff, 1.2); d2.position.set(-4, -1, -3); scene.add(d2);
+
+  const W = 1.16, Hh = 2.42, R = 0.2, D = 0.12, BT = 0.03;
+  const rr = (w, h, rad) => { const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
+    s.moveTo(x + rad, y); s.lineTo(x + w - rad, y); s.quadraticCurveTo(x + w, y, x + w, y + rad);
+    s.lineTo(x + w, y + h - rad); s.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    s.lineTo(x + rad, y + h); s.quadraticCurveTo(x, y + h, x, y + h - rad);
+    s.lineTo(x, y + rad); s.quadraticCurveTo(x, y, x + rad, y); return s; };
+  const grp = new THREE.Group();
+  const bodyGeo = new THREE.ExtrudeGeometry(rr(W, Hh, R), { depth: D, bevelEnabled: true, bevelThickness: BT, bevelSize: BT, bevelSegments: 4, curveSegments: 18 });
+  bodyGeo.center();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2c4a73, metalness: 0.75, roughness: 0.32 });
+  grp.add(new THREE.Mesh(bodyGeo, bodyMat));
+  // Display mit Live-Textur
+  const sw = W - 0.07, shh = Hh - 0.07;
+  const scrGeo = new THREE.ShapeGeometry(rr(sw, shh, R - 0.03), 18);
+  const pos = scrGeo.attributes.position, uv = scrGeo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + sw / 2) / sw, (pos.getY(i) + shh / 2) / shh);
+  const tc = document.createElement('canvas'); tc.width = 256; tc.height = 534;
+  const tx = tc.getContext('2d'), tex = new THREE.CanvasTexture(tc); tex.colorSpace = THREE.SRGBColorSpace;
+  const scr = new THREE.Mesh(scrGeo, new THREE.MeshBasicMaterial({ map: tex }));
+  scr.position.z = D / 2 + BT + 0.002; grp.add(scr);
+  const isl = new THREE.Mesh(new THREE.ShapeGeometry(rr(0.3, 0.085, 0.042), 10), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  isl.position.set(0, Hh / 2 - 0.15, D / 2 + BT + 0.004); grp.add(isl);
+  // Kamera-Plateau hinten
+  const back = -(D / 2 + BT);
+  const plat = new THREE.Mesh(new THREE.ExtrudeGeometry(rr(W - 0.06, 0.6, 0.12), { depth: 0.04, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2 }), bodyMat);
+  plat.position.set(0, Hh / 2 - 0.36, back - 0.045); grp.add(plat);
+  const lensMat = new THREE.MeshStandardMaterial({ color: 0x0a0f18, metalness: 0.9, roughness: 0.15 });
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x9fb3c8, metalness: 1, roughness: 0.25 });
+  const lens = (x, y, rad) => {
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.05, 32), ringMat); ring.rotation.x = Math.PI / 2;
+    const gl = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.72, rad * 0.72, 0.052, 32), lensMat); gl.rotation.x = Math.PI / 2;
+    ring.position.set(x, y, back - 0.08); gl.position.set(x, y, back - 0.082); grp.add(ring, gl); };
+  const py = Hh / 2 - 0.36;
+  lens(-0.3, py + 0.13, 0.105); lens(-0.3, py - 0.13, 0.105); lens(-0.07, py, 0.105);
+  const dotM = (x, y, rad, c) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.02, 20), new THREE.MeshStandardMaterial({ color: c, roughness: 0.4 })); m.rotation.x = Math.PI / 2; m.position.set(x, y, back - 0.06); grp.add(m); };
+  dotM(0.32, py + 0.13, 0.045, 0xf4e7c8); dotM(0.32, py - 0.13, 0.045, 0x111418);
+  grp.scale.setScalar(0.86); grp.position.y = 0.22; scene.add(grp);
+  // Bodenschatten
+  const sc = document.createElement('canvas'); sc.width = sc.height = 128; const sx = sc.getContext('2d');
+  const gr = sx.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  sx.fillStyle = gr; sx.fillRect(0, 0, 128, 128);
+  const sh = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false }));
+  sh.rotation.x = -Math.PI / 2; sh.position.y = -1.55; scene.add(sh);
+
+  const qConv = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const eu = new THREE.Euler(), qd = new THREE.Quaternion(), qt = new THREE.Quaternion();
+  let lastTex = 0;
+  const drawScreen = () => {
+    const g = tx.createLinearGradient(0, 0, 256, 534);
+    g.addColorStop(0, '#1b5b8f'); g.addColorStop(.55, '#0f2c52'); g.addColorStop(1, '#0a1730');
+    tx.fillStyle = g; tx.fillRect(0, 0, 256, 534);
+    tx.fillStyle = '#eaf2ff'; tx.textAlign = 'center';
+    tx.font = '600 22px -apple-system, system-ui, sans-serif'; tx.fillText('Sensor Lab', 128, 92);
+    tx.font = '700 64px ui-rounded, -apple-system, system-ui, sans-serif';
+    tx.fillText(S.hasOri ? fmt(Math.acos(clamp(S.u.z, -1, 1)) * R2D) + '°' : '–', 128, 290);
+    tx.font = '500 20px -apple-system, system-ui, sans-serif'; tx.fillStyle = '#8fd9ff'; tx.fillText('Neigung', 128, 322);
+    tx.strokeStyle = 'rgba(138,217,255,.6)'; tx.lineWidth = 3; tx.beginPath(); tx.arc(128, 430, 40, 0, Math.PI * 2); tx.stroke();
+    tx.fillStyle = '#74e3b5'; tx.beginPath(); tx.arc(128 + clamp(S.u.x, -1, 1) * 34, 430 - clamp(S.u.y, -1, 1) * 34, 9, 0, Math.PI * 2); tx.fill();
+    tex.needsUpdate = true;
+  };
+  drawScreen();
+  const fit = () => { const b = cv.parentElement.getBoundingClientRect(); r.setSize(b.width, b.height, false); cam.aspect = b.width / b.height; cam.updateProjectionMatrix(); };
+  new ResizeObserver(fit).observe(cv.parentElement); fit();
+  HERO.ok = true;
+  HERO.render = (t) => {
+    if (S.hasOri) {
+      eu.set(S.b * D2R, S.g * D2R, (S.a - (S.alpha0 || 0)) * D2R, 'ZXY');
+      qd.setFromEuler(eu); qt.copy(qConv).multiply(qd);
+      grp.quaternion.slerp(qt, 0.3);
+    } else {
+      grp.rotation.set(-0.35, t * 0.0004, 0);
+    }
+    if (t - lastTex > 200) { drawScreen(); lastTex = t; }
+    r.render(scene, cam);
+  };
+}
+
+/* ---------- Kacheln ---------- */
+const TILES = [
+  ['level', 'gMove', 'Wasserwaage'], ['compass', 'gMove', 'Kompass'],
+  ['gyro', 'gMove', 'Gyroskop'], ['gforce', 'gMove', 'G-Kraft'],
+  ['seismo', 'gMove', 'Erschütterung'], ['steps', 'gMove', 'Schritte'],
+  ['tacho', 'gPlace', 'Tacho und GPS', true],
+  ['db', 'gSense', 'Lautstärke'], ['freq', 'gSense', 'Tonhöhe'],
+  ['light', 'gSense', 'Licht'], ['face', 'gSense', 'Face ID'],
+  ['touch', 'gDev', 'Touch'], ['display', 'gDev', 'Display'], ['info', 'gDev', 'Geräteinfo', true]
+];
+const TE = {};
+for (const [id, g, name, wide] of TILES) {
+  const b = document.createElement('button');
+  b.className = 'tile glass' + (wide ? ' wide' : '');
+  b.innerHTML = `<div class="t"><span>${name}</span><span class="dot"></span></div><div><div class="v">–</div><div class="s"></div></div>`;
+  b.onclick = () => openTool(id);
+  $('#' + g).appendChild(b);
+  TE[id] = { v: b.querySelector('.v'), s: b.querySelector('.s'), d: b.querySelector('.dot') };
+}
+const setT = (id, v, s, st) => { const e = TE[id]; if (e.v.innerHTML !== v) e.v.innerHTML = v; if (e.s.textContent !== s) e.s.textContent = s; e.d.className = 'dot' + (st === 1 ? ' on' : st === -1 ? ' off' : ''); };
+const motTxt = () => S.denied ? 'Zugriff verweigert' : 'Warte auf Sensor';
+function updateTiles() {
+  const mo = S.hasMot ? 1 : S.denied ? -1 : 0, or = S.hasOri ? 1 : S.denied ? -1 : 0;
+  const tilt = Math.acos(clamp(S.u.z, -1, 1)) * R2D;
+  setT('level', S.hasOri ? fmt(tilt, 1) + '<small>°</small>' : '–', S.hasOri ? (tilt < 0.5 ? 'Waagerecht' : 'Geneigt') : motTxt(), or);
+  setT('compass', S.heading != null ? fmt(S.heading) + '<small>° ' + dirName(S.heading) + '</small>' : '–', S.heading != null ? 'Magnetisch Nord' : S.hasOri ? 'Kein Kompass' : motTxt(), S.heading != null ? 1 : or);
+  setT('gyro', S.hasMot ? fmt(Math.hypot(S.ra, S.rb, S.rg)) + '<small>°/s</small>' : '–', S.hasMot ? 'Drehrate' : motTxt(), mo);
+  setT('gforce', S.hasMot ? fmt(S.gNow, 2) + '<small>g</small>' : '–', S.hasMot ? 'Max ' + fmt(S.gMax, 2) + ' g' : motTxt(), mo);
+  setT('seismo', S.hasMot ? fmt(S.seis, 2) + '<small>m/s²</small>' : '–', S.hasMot ? seisLabel(S.seis) : motTxt(), mo);
+  setT('steps', S.hasMot ? String(S.steps) : '–', S.hasMot ? 'Schätzung seit Start' : motTxt(), mo);
+  setT('tacho', S.gps ? fmt(S.kmh) + '<small>km/h</small>' : '–', S.gpsErr || (S.gps ? (S.acc != null ? 'Strecke ' + fmt(S.dist / 1000, 2) + ' km, Genauigkeit ±' + fmt(S.acc) + ' m' : 'Suche Signal…') : 'Tippen zum Starten'), S.gpsErr ? -1 : S.gps && S.acc != null ? 1 : 0);
+  setT('db', M.db != null ? fmt(M.db) + '<small>dB</small>' : '–', A.err || (M.db != null ? 'Live' : 'Tippen zum Messen'), A.err ? -1 : M.db != null ? 1 : 0);
+  setT('freq', M.freq ? fmt(M.freq) + '<small>Hz</small>' : '–', A.err || (A.an ? (M.freq ? M.note : 'Warte auf Ton') : 'Tippen zum Messen'), A.err ? -1 : A.an ? 1 : 0);
+  setT('light', CAM.lum != null ? fmt(CAM.lum) + '<small>%</small>' : '–', CAM.err || (CAM.st ? 'Über Kamera' : 'Tippen zum Messen'), CAM.err ? -1 : CAM.st ? 1 : 0);
+  setT('face', FID.ok ? 'Erkannt' : 'Testen', FID.avail == null ? '' : FID.avail ? 'Verfügbar' : 'Nicht verfügbar', FID.avail ? 1 : FID.avail === false ? -1 : 0);
+  setT('touch', String(navigator.maxTouchPoints || 0) + '<small>Finger</small>', 'Multitouch testen', 1);
+  setT('display', fmt(S.fps) + '<small>fps</small>', screen.width + ' × ' + screen.height + ' pt', 1);
+  setT('info', (navigator.hardwareConcurrency || '–') + '<small>Kerne</small>', navigator.standalone ? 'Läuft als Homescreen-App' : 'Läuft in Safari', 1);
+  const live = [S.hasOri, S.hasMot, S.heading != null, S.gps && S.acc != null, !!A.an, !!CAM.st].filter(Boolean).length;
+  $('#liveTxt').textContent = live ? live + ' Quellen aktiv' : (S.denied ? 'kein Zugriff' : 'bereit');
+  $('#liveDot').className = 'dot' + (live ? ' on' : S.denied ? ' off' : '');
+  $('#hTilt').textContent = S.hasOri ? fmt(tilt, 1) + '°' : '–';
+  $('#hHead').textContent = S.heading != null ? fmt(S.heading) + '° ' + dirName(S.heading) : '–';
+}
+const seisLabel = m => m < 0.05 ? 'Ruhig' : m < 0.3 ? 'Leicht' : m < 1.5 ? 'Deutlich' : 'Stark';
+
+/* ---------- Detailansichten ---------- */
+const stage = $('#stage'); let C = null, cur = null, curId = null, lastStats = 0;
+const FONT = (w, s) => `${w} ${s}px ui-rounded, -apple-system, system-ui, sans-serif`;
+function mkCanvas() {
+  const cv = document.createElement('canvas'); stage.appendChild(cv);
+  C = { cv, ctx: cv.getContext('2d') };
+  C.fit = () => { const r = stage.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 3); cv.width = r.width * d; cv.height = r.height * d; C.ctx.setTransform(d, 0, 0, d, 0, 0); C.w = r.width; C.h = r.height; };
+  C.fit(); return C;
+}
+addEventListener('resize', () => C && C.fit && C.fit());
+function setStats(arr) {
+  const el = $('#shStats');
+  if (el.children.length !== arr.length) el.innerHTML = arr.map(() => '<div class="stat glass"><b></b><span></span></div>').join('');
+  arr.forEach(([l, v], i) => { const c = el.children[i]; if (c.firstChild.innerHTML !== v) c.firstChild.innerHTML = v; if (c.lastChild.textContent !== l) c.lastChild.textContent = l; });
+}
+function setActions(list) {
+  const el = $('#shActions'); el.innerHTML = '';
+  list.forEach(([txt, fn]) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = txt; b.onclick = fn; el.appendChild(b); });
+}
+function centerText(ctx, txt, x, y, font, col) { ctx.font = font; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y); }
+function graph(ctx, x, y, w, h, rings, cols, min, max) {
+  ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) { const yy = y + h * k / 4; ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke(); }
+  rings.forEach((r, j) => {
+    if (!r.len) return; ctx.strokeStyle = cols[j]; ctx.lineWidth = 2.2; ctx.beginPath();
+    for (let k = 0; k < r.len; k++) {
+      const px = x + w - (r.len - 1 - k) * (w / (r.n - 1)), py = y + h - (clamp(r.get(k), min, max) - min) / (max - min) * h;
+      k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  });
+}
+const ICE = '#8AD9FF', AMB = '#FFB84D', MINT = '#74E3B5', ROSE = '#FF7A8A', MUT = '#8FA3BF', TXT = '#EAF2FF';
+
+const TOOLS = {
+  level: {
+    title: 'Wasserwaage', note: 'Flach hinlegen für die Dosenlibelle, hochkant an eine Kante halten für die Röhrenlibelle. Grün heißt unter 0,5°.',
+    open() { mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      const u = S.u, cx = w / 2, cy = h / 2;
+      if (!S.hasOri) { centerText(ctx, motTxt(), cx, cy, FONT(500, 16), MUT); return; }
+      const flat = Math.abs(u.z) > 0.7;
+      if (flat) {
+        const R = Math.min(w, h) * 0.4, k = R / 15;
+        const ax = Math.asin(clamp(u.x, -1, 1)) * R2D, ay = Math.asin(clamp(u.y, -1, 1)) * R2D, tot = Math.acos(clamp(Math.abs(u.z), -1, 1)) * R2D;
+        const ok = tot < 0.5;
+        ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5;
+        [1, 5, 10, 15].forEach(a => { ctx.beginPath(); ctx.arc(cx, cy, a * k, 0, Math.PI * 2); ctx.stroke(); });
+        ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+        const bx = cx + clamp(ax, -15, 15) * k, by = cy - clamp(ay, -15, 15) * k;
+        ctx.fillStyle = ok ? MINT : ICE; ctx.globalAlpha = .85; ctx.beginPath(); ctx.arc(bx, by, Math.max(14, k * 2.2), 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        centerText(ctx, fmt(tot, 1) + '°', cx, cy + R + 34 > h - 20 ? 34 : cy + R + 30, FONT(700, 30), ok ? MINT : TXT);
+        this.st = [['Gesamt', fmt(tot, 1) + '°'], ['Links/Rechts', fmt(ax, 1) + '°'], ['Vor/Zurück', fmt(ay, 1) + '°']];
+      } else {
+        let roll = Math.atan2(u.x, u.y) * R2D;
+        const snap = Math.round(roll / 90) * 90, dev = roll - snap, ok = Math.abs(dev) < 0.5;
+        const tw = Math.min(w * 0.86, 520), th = 56, k = tw / 2 / 10;
+        ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(cx - tw / 2, cy - th / 2, tw, th, th / 2); ctx.stroke();
+        [-1, 1].forEach(s => { ctx.beginPath(); ctx.moveTo(cx + s * 22, cy - th / 2); ctx.lineTo(cx + s * 22, cy + th / 2); ctx.stroke(); });
+        ctx.fillStyle = ok ? MINT : ICE; ctx.globalAlpha = .85;
+        ctx.beginPath(); ctx.roundRect(cx + clamp(dev, -10, 10) * k - 34, cy - th / 2 + 7, 68, th - 14, (th - 14) / 2); ctx.fill(); ctx.globalAlpha = 1;
+        centerText(ctx, fmt(Math.abs(dev), 1) + '°', cx, cy + 74, FONT(700, 34), ok ? MINT : TXT);
+        this.st = [['Abweichung', fmt(dev, 1) + '°'], ['Kante', fmt(((snap % 360) + 360) % 360) + '°'], ['Modus', 'Röhre']];
+      }
+    },
+    stats() { return this.st || [['Gesamt', '–'], ['Links/Rechts', '–'], ['Vor/Zurück', '–']]; }
+  },
+  compass: {
+    title: 'Kompass', note: 'Für genaue Werte das iPhone flach halten. Bei schlechter Genauigkeit eine Acht in der Luft beschreiben. Metall und Magnete stören.',
+    open() { mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2 - 10, R = Math.min(w, h) * 0.4;
+      if (S.heading == null) { centerText(ctx, S.hasOri ? 'Kein Kompass verfügbar' : motTxt(), cx, cy, FONT(500, 16), MUT); return; }
+      const hd = S.heading;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-hd * D2R);
+      for (let a = 0; a < 360; a += 5) {
+        const big = a % 30 === 0; ctx.strokeStyle = a === 0 ? ROSE : big ? TXT : 'rgba(255,255,255,.35)'; ctx.lineWidth = big ? 2.5 : 1.2;
+        const s = Math.sin(a * D2R), c = -Math.cos(a * D2R), r0 = R - (big ? 16 : 8);
+        ctx.beginPath(); ctx.moveTo(s * r0, c * r0); ctx.lineTo(s * R, c * R); ctx.stroke();
+      }
+      ['N', 'O', 'S', 'W'].forEach((t, i) => { const a = i * 90 * D2R, rr = R - 36;
+        ctx.save(); ctx.translate(Math.sin(a) * rr, -Math.cos(a) * rr); ctx.rotate(hd * D2R);
+        centerText(ctx, t, 0, 0, FONT(700, 22), i === 0 ? ROSE : TXT); ctx.restore(); });
+      ctx.restore();
+      ctx.fillStyle = AMB; ctx.beginPath(); ctx.moveTo(cx, cy - R - 4); ctx.lineTo(cx - 9, cy - R - 20); ctx.lineTo(cx + 9, cy - R - 20); ctx.fill();
+      centerText(ctx, fmt(hd) + '°', cx, cy - 8, FONT(700, 46), TXT);
+      centerText(ctx, dirName(hd), cx, cy + 30, FONT(600, 20), ICE);
+    },
+    stats() { return [['Kurs', fmt(S.heading) + '°'], ['Richtung', S.heading != null ? dirName(S.heading) : '–'], ['Genauigkeit', S.headAcc != null && S.headAcc >= 0 ? '±' + fmt(S.headAcc) + '°' : '–']]; }
+  },
+  gyro: {
+    title: 'Gyroskop', note: 'Drehrate um die drei Achsen in Grad pro Sekunde. Blau: X (vor/zurück kippen), Gelb: Y (seitlich kippen), Rot: Z (flach drehen).',
+    open() { mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      if (!S.hasMot) { centerText(ctx, motTxt(), w / 2, h / 2, FONT(500, 16), MUT); return; }
+      let m = 90; for (const r of [H.gx, H.gy, H.gz]) for (let k = 0; k < r.len; k++) m = Math.max(m, Math.abs(r.get(k)));
+      m = Math.ceil(m / 90) * 90;
+      graph(ctx, 12, 16, w - 24, h - 32, [H.gx, H.gy, H.gz], [ICE, AMB, ROSE], -m, m);
+      ctx.font = FONT(500, 12); ctx.fillStyle = MUT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('±' + m + ' °/s', 16, 20);
+    },
+    stats() { return [['X °/s', fmt(S.rb)], ['Y °/s', fmt(S.rg)], ['Z °/s', fmt(S.ra)]]; }
+  },
+  gforce: {
+    title: 'G-Kraft', note: 'Der Punkt zeigt die Beschleunigung ohne Erdanziehung in der Displayebene, Ringe bei 0,5 / 1 / 1,5 g. Im Auto als Beifahrer flach in der Hand halten.',
+    open() { mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.42, k = R / 1.5;
+      if (!S.hasMot) { centerText(ctx, motTxt(), cx, cy, FONT(500, 16), MUT); return; }
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1.5;
+      [0.5, 1, 1.5].forEach(g => { ctx.beginPath(); ctx.arc(cx, cy, g * k, 0, Math.PI * 2); ctx.stroke(); });
+      ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+      H.gTrail.forEach(([x, y], i) => { ctx.fillStyle = `rgba(138,217,255,${i / H.gTrail.length * .5})`; ctx.beginPath(); ctx.arc(cx + clamp(x, -1.5, 1.5) * k, cy - clamp(y, -1.5, 1.5) * k, 5, 0, Math.PI * 2); ctx.fill(); });
+      const p = H.gTrail[H.gTrail.length - 1] || [0, 0];
+      ctx.fillStyle = AMB; ctx.beginPath(); ctx.arc(cx + clamp(p[0], -1.5, 1.5) * k, cy - clamp(p[1], -1.5, 1.5) * k, 12, 0, Math.PI * 2); ctx.fill();
+    },
+    stats() { const p = H.gTrail[H.gTrail.length - 1] || [0, 0]; return [['Gesamt', fmt(S.gNow, 2) + ' g'], ['Spitze', fmt(S.gMax, 2) + ' g'], ['Ebene', fmt(Math.hypot(p[0], p[1]), 2) + ' g']]; },
+    actions: [['Spitze zurücksetzen', () => { S.gMax = S.gNow; }]]
+  },
+  seismo: {
+    title: 'Erschütterung', note: 'Seismograph: Beschleunigung ohne Erdanziehung. iPhone auf den Tisch legen und daneben klopfen.',
+    open() { mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      if (!S.hasMot) { centerText(ctx, motTxt(), w / 2, h / 2, FONT(500, 16), MUT); return; }
+      let m = 0.5; for (let k = 0; k < H.seis.len; k++) m = Math.max(m, H.seis.get(k));
+      graph(ctx, 12, 16, w - 24, h - 32, [H.seis], [S.seis < 0.3 ? MINT : S.seis < 1.5 ? AMB : ROSE], 0, m * 1.1);
+      ctx.font = FONT(500, 12); ctx.fillStyle = MUT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText(fmt(m * 1.1, 2) + ' m/s²', 16, 20);
+    },
+    stats() { return [['Aktuell', fmt(S.seis, 2)], ['Spitze', fmt(S.seisMax, 2)], ['Stufe', seisLabel(S.seis)]]; },
+    actions: [['Spitze zurücksetzen', () => { S.seisMax = 0; }]]
+  },
+  steps: {
+    title: 'Schritte', note: 'Schätzung aus dem Beschleunigungssensor, nur solange die Seite offen ist. Der echte iPhone-Schrittzähler ist im Browser gesperrt.',
+    open() { mkCanvas(); },
+    draw(t) {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2;
+      if (!S.hasMot) { centerText(ctx, motTxt(), cx, cy, FONT(500, 16), MUT); return; }
+      const age = (t - S.stepPulse) / 600;
+      if (age < 1) { ctx.strokeStyle = `rgba(116,227,181,${1 - age})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 70 + age * 60, 0, Math.PI * 2); ctx.stroke(); }
+      centerText(ctx, String(S.steps), cx, cy, FONT(700, 72), TXT);
+      centerText(ctx, 'Schritte', cx, cy + 50, FONT(500, 16), MUT);
+    },
+    stats() {
+      const now = performance.now(), rec = S.stepTimes.filter(x => now - x < 10000);
+      const cad = rec.length > 1 ? (rec.length - 1) / ((rec[rec.length - 1] - rec[0]) / 60000) : 0;
+      return [['Pro Minute', fmt(cad)], ['Strecke ca.', fmt(S.steps * 0.72) + ' m']];
+    },
+    actions: [['Zurücksetzen', () => { S.steps = 0; S.stepTimes = []; }]]
+  },
+  tacho: {
+    title: 'Tacho und GPS', note: 'Geschwindigkeit kommt direkt vom GPS. Im Auto nur als Beifahrer bedienen. Unter freiem Himmel ist das Signal am genauesten.',
+    open() { startGPS(); mkCanvas(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2 + 18, R = Math.min(w, h * 1.1) * 0.4;
+      const top = Math.min(300, Math.max(60, Math.ceil((S.kmhMax + 10) / 20) * 20));
+      const a0 = 135 * D2R, sw = 270 * D2R, f = clamp(S.kmh / top, 0, 1);
+      ctx.lineCap = 'round'; ctx.lineWidth = 14;
+      ctx.strokeStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + sw); ctx.stroke();
+      ctx.strokeStyle = ICE; ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + sw * f); ctx.stroke();
+      const fm = clamp(S.kmhMax / top, 0, 1), am = a0 + sw * fm;
+      ctx.fillStyle = AMB; ctx.beginPath(); ctx.arc(cx + Math.cos(am) * R, cy + Math.sin(am) * R, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.lineCap = 'butt';
+      for (let v = 0; v <= top; v += 20) { const a = a0 + sw * v / top;
+        centerText(ctx, String(v), cx + Math.cos(a) * (R - 32), cy + Math.sin(a) * (R - 32), FONT(500, 12), MUT); }
+      centerText(ctx, S.gps && S.acc != null ? fmt(S.kmh) : '–', cx, cy - 6, FONT(700, 64), TXT);
+      centerText(ctx, S.gpsErr || (S.acc == null ? 'Suche Signal…' : 'km/h'), cx, cy + 36, FONT(500, 15), S.gpsErr ? ROSE : MUT);
+    },
+    stats() { return [['Spitze', fmt(S.kmhMax) + ' km/h'], ['Strecke', fmt(S.dist / 1000, 2) + ' km'], ['Höhe GPS', S.alt != null ? fmt(S.alt) + ' m' : '–'],
+      ['Genauigkeit', S.acc != null ? '±' + fmt(S.acc) + ' m' : '–'], ['Breite', S.lat != null ? fmt(S.lat, 5) : '–'], ['Länge', S.lon != null ? fmt(S.lon, 5) : '–']]; },
+    actions: [['Zurücksetzen', () => { S.kmhMax = 0; S.dist = 0; }]]
+  },
+  db: {
+    title: 'Lautstärke', note: 'Schätzwert ohne Kalibrierung: das iPhone-Mikrofon ist kein Messgerät. Gut für Vergleiche (leise/laut), nicht für amtliche Werte.',
+    async open() { mkCanvas(); await startMic(); M.dbMax = 0; M.dbSum = 0; M.dbN = 0; },
+    close() { stopMic(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      if (!A.an) { centerText(ctx, A.err || 'Mikrofon wird gestartet…', w / 2, h / 2, FONT(500, 16), A.err ? ROSE : MUT); return; }
+      const v = M.db || 0, col = v < 70 ? MINT : v < 85 ? AMB : ROSE;
+      const gh = h * 0.42, n = H.db.len, bw = (w - 24) / H.db.n;
+      for (let k = 0; k < n; k++) { const x = H.db.get(k), bh = x / 120 * gh; ctx.fillStyle = x < 70 ? 'rgba(116,227,181,.55)' : x < 85 ? 'rgba(255,184,77,.6)' : 'rgba(255,122,138,.7)';
+        ctx.fillRect(12 + (H.db.n - n + k) * bw, h - 14 - bh, Math.max(1, bw - 1), bh); }
+      centerText(ctx, fmt(v), w / 2, h * 0.3, FONT(700, 80), col);
+      centerText(ctx, 'dB (geschätzt)', w / 2, h * 0.3 + 50, FONT(500, 15), MUT);
+    },
+    stats() { return [['Aktuell', fmt(M.db) + ' dB'], ['Spitze', fmt(M.dbMax) + ' dB'], ['Mittel', M.dbN ? fmt(10 * Math.log10(M.dbSum / M.dbN)) + ' dB' : '–']]; },
+    actions: [['Zurücksetzen', () => { M.dbMax = 0; M.dbSum = 0; M.dbN = 0; }]]
+  },
+  freq: {
+    title: 'Tonhöhe', note: 'Zeigt die stärkste Frequenz und den nächsten Ton (deutsche Notation, H statt B). Funktioniert auch als einfaches Stimmgerät.',
+    async open() { mkCanvas(); await startMic(); },
+    close() { stopMic(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      if (!A.an) { centerText(ctx, A.err || 'Mikrofon wird gestartet…', w / 2, h / 2, FONT(500, 16), A.err ? ROSE : MUT); return; }
+      const binHz = A.ctx.sampleRate / A.an.fftSize, base = h - 12, sh = h * 0.45;
+      const gr = ctx.createLinearGradient(0, base - sh, 0, base); gr.addColorStop(0, 'rgba(138,217,255,.75)'); gr.addColorStop(1, 'rgba(138,217,255,.05)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(12, base);
+      for (let x = 0; x <= w - 24; x += 2) { const f = 50 * Math.pow(160, x / (w - 24)), v = A.fd[Math.round(f / binHz)];
+        ctx.lineTo(12 + x, base - clamp((v + 110) / 90, 0, 1) * sh); }
+      ctx.lineTo(w - 12, base); ctx.fill();
+      ctx.font = FONT(500, 11); ctx.fillStyle = MUT; ctx.textBaseline = 'bottom';
+      [100, 1000, 5000].forEach(f => { const x = 12 + Math.log(f / 50) / Math.log(160) * (w - 24); ctx.textAlign = 'center'; ctx.fillText(f >= 1000 ? f / 1000 + ' kHz' : f + ' Hz', x, base - 2); });
+      centerText(ctx, M.freq ? M.note : '–', w / 2, h * 0.2, FONT(700, 64), TXT);
+      if (M.freq) {
+        const mw = Math.min(w * 0.7, 300), mx = w / 2 - mw / 2, my = h * 0.2 + 52, ok = Math.abs(M.cents) < 5;
+        ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(mx, my, mw, 4); ctx.fillRect(w / 2 - 1, my - 8, 2, 20);
+        ctx.fillStyle = ok ? MINT : AMB; ctx.beginPath(); ctx.arc(w / 2 + M.cents / 50 * mw / 2, my + 2, 8, 0, Math.PI * 2); ctx.fill();
+      }
+    },
+    stats() { return [['Frequenz', M.freq ? fmt(M.freq, 1) + ' Hz' : '–'], ['Ton', M.freq ? M.note : '–'], ['Abweichung', M.freq ? (M.cents > 0 ? '+' : '') + fmt(M.cents) + ' ct' : '–']]; }
+  },
+  light: {
+    title: 'Licht', noCanvas: true, note: 'Misst die Bildhelligkeit der Kamera. iOS regelt die Belichtung automatisch nach, deshalb sind die Werte relativ, nicht in Lux.',
+    async open() { CAM.vid = document.createElement('video'); CAM.vid.setAttribute('playsinline', ''); CAM.vid.muted = true; stage.appendChild(CAM.vid);
+      const lab = document.createElement('div'); lab.className = 'lab'; lab.innerHTML = '<b id="lumV">–</b>'; stage.appendChild(lab); await startCam(); },
+    close() { stopCam(); },
+    draw() { const el = $('#lumV'); if (el) el.textContent = CAM.err || (CAM.lum != null ? fmt(CAM.lum) + ' %' : 'Startet…'); },
+    stats() { return [['Helligkeit', CAM.lum != null ? fmt(CAM.lum) + ' %' : '–'], ['Max', CAM.st ? fmt(CAM.lumMax) + ' %' : '–'], ['Min', CAM.st ? fmt(CAM.lumMin) + ' %' : '–']]; },
+    actions: [['Kamera wechseln', () => startCam(CAM.facing === 'environment' ? 'user' : 'environment')]]
+  },
+  face: {
+    title: 'Face ID', note: 'Der Browser darf Face ID nur über einen Passkey nutzen. Beim Anlegen wird ein Passkey „Sensor Lab“ im iCloud-Schlüsselbund gespeichert; löschen kannst du ihn in der Passwörter-App.',
+    open() { stage.innerHTML = '<div class="panel" id="facePanel"></div>'; renderFace(); },
+    stats() { return []; },
+    actions: [['Passkey anlegen', () => faceRegister()], ['Face ID prüfen', () => faceVerify()]]
+  },
+  touch: {
+    title: 'Touch', note: 'Mit mehreren Fingern gleichzeitig auf die Fläche tippen. Jeder Finger bekommt einen eigenen Kreis.',
+    open() { mkCanvas(); this.pts = new Map(); this.max = 0;
+      const up = e => { e.preventDefault(); const r = stage.getBoundingClientRect(); this.pts.clear();
+        for (const t of e.touches) this.pts.set(t.identifier, [t.clientX - r.left, t.clientY - r.top, t.radiusX || 0]);
+        this.max = Math.max(this.max, this.pts.size); };
+      ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(ev => stage.addEventListener(ev, up, { passive: false }));
+      this.off = () => ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(ev => stage.removeEventListener(ev, up)); },
+    close() { this.off && this.off(); },
+    draw() {
+      const { ctx, w, h } = C; ctx.clearRect(0, 0, w, h);
+      if (!this.pts.size) { centerText(ctx, 'Finger auflegen', w / 2, h / 2, FONT(500, 18), MUT); return; }
+      const cols = [ICE, AMB, MINT, ROSE, '#C7A6FF'];
+      let i = 0; for (const [id, [x, y]] of this.pts) { ctx.strokeStyle = cols[i % 5]; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 46, 0, Math.PI * 2); ctx.stroke();
+        centerText(ctx, String(i + 1), x, y, FONT(700, 22), cols[i % 5]); i++; }
+    },
+    stats() { const r = [...(this.pts || new Map()).values()].map(p => p[2]).filter(Boolean);
+      return [['Finger jetzt', String(this.pts ? this.pts.size : 0)], ['Maximum', String(this.max || 0)], ['Kontaktradius', r.length ? fmt(r[0]) + ' px' : '–']]; }
+  },
+  display: {
+    title: 'Display', noCanvas: true, note: 'Safari begrenzt Webseiten auf 60 fps, auch wenn das ProMotion-Display 120 Hz kann. Native Apps bekommen die vollen 120 Hz.',
+    open() { stage.innerHTML = '<div class="panel" id="dispPanel"></div>'; this.t = 0; },
+    draw(t) {
+      if (t - this.t < 400) return; this.t = t;
+      const dpr = devicePixelRatio || 1, q = m => matchMedia(m).matches;
+      $('#dispPanel').innerHTML = [
+        ['Bildrate gemessen', fmt(S.fps) + ' fps'], ['Auflösung', screen.width + ' × ' + screen.height + ' pt'],
+        ['Physische Pixel', Math.round(screen.width * dpr) + ' × ' + Math.round(screen.height * dpr)], ['Pixelfaktor', '@' + dpr + 'x'],
+        ['Farbraum P3', q('(color-gamut: p3)') ? 'ja' : 'nein'], ['HDR', q('(dynamic-range: high)') ? 'ja' : 'nein'],
+        ['Dunkelmodus', q('(prefers-color-scheme: dark)') ? 'an' : 'aus'], ['Ausrichtung', (screen.orientation && screen.orientation.type || '').startsWith('landscape') ? 'Querformat' : 'Hochformat'],
+        ['Sichtbarer Bereich', innerWidth + ' × ' + innerHeight + ' pt']
+      ].map(([a, b]) => `<div class="row"><span>${a}</span><b>${b}</b></div>`).join('');
+    },
+    stats() { return []; }
+  },
+  info: {
+    title: 'Geräteinfo', note: 'Das sind alle Gerätedaten, die Safari an Webseiten weitergibt. Modellname, Akku und Speicher hält Apple bewusst zurück.',
+    open() { const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      stage.innerHTML = '<div class="panel">' + [
+        ['CPU-Kerne', navigator.hardwareConcurrency || '–'], ['Max. Touchpunkte', navigator.maxTouchPoints || 0],
+        ['Sprache', navigator.language], ['Zeitzone', tz], ['Online', navigator.onLine ? 'ja' : 'nein'],
+        ['Homescreen-App', navigator.standalone ? 'ja' : 'nein'], ['Sichere Verbindung', isSecureContext ? 'ja' : 'nein'],
+        ['Bewegungssensor', S.hasMot ? 'aktiv' : 'inaktiv'], ['Ausrichtung', S.hasOri ? 'aktiv' : 'inaktiv'],
+        ['User Agent', navigator.userAgent]
+      ].map(([a, b]) => `<div class="row"><span>${a}</span><b>${b}</b></div>`).join('') + '</div>'; },
+    stats() { return []; }
+  }
+};
+
+async function openTool(id) {
+  if (cur) closeTool();
+  const t = TOOLS[id]; cur = t; curId = id;
+  stage.innerHTML = ''; C = null;
+  $('#shTitle').textContent = t.title; $('#shNote').textContent = t.note || '';
+  $('#shStats').innerHTML = ''; setActions(t.actions || []);
+  $('#sheet').classList.add('open'); document.body.style.overflow = 'hidden';
+  await new Promise(r => requestAnimationFrame(r));
+  await t.open();
+  if (cur !== t && t.close) t.close();
+}
+function closeTool() {
+  if (!cur) return; cur.close && cur.close(); cur = null; curId = null; C = null;
+  $('#sheet').classList.remove('open'); stage.innerHTML = ''; document.body.style.overflow = '';
+}
+$('#shClose').onclick = closeTool;
+$('#hCenter').onclick = () => { S.alpha0 = S.a; };
+
+/* ---------- Hauptschleife ---------- */
+let lastTile = 0, fN = 0, fT = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  fN++; if (t - fT >= 1000) { S.fps = fN * 1000 / (t - fT); fN = 0; fT = t; }
+  if (A.an) readMic();
+  if (CAM.st) readCam();
+  if (!cur && HERO.ok) HERO.render(t);
+  if (cur && cur.draw && (C || cur.noCanvas)) { try { cur.draw(t); } catch (e) {} }
+  if (cur && t - lastStats > 120) { setStats(cur.stats()); lastStats = t; }
+  if (t - lastTile > 150) { updateTiles(); lastTile = t;
+    const u = S.u; $('#bg').style.transform = `translate3d(${clamp(u.x, -1, 1) * 18}px,${clamp(-u.y, -1, 1) * 18}px,0)`; }
+}
+
+/* ---------- Start ---------- */
+(function icon() {
+  const c = document.createElement('canvas'); c.width = c.height = 180; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 180, 180); g.addColorStop(0, '#21497a'); g.addColorStop(1, '#071324');
+  x.fillStyle = g; x.fillRect(0, 0, 180, 180);
+  x.strokeStyle = '#8AD9FF'; x.lineWidth = 7; x.beginPath(); x.arc(90, 90, 52, 0, Math.PI * 2); x.stroke();
+  x.lineWidth = 3; x.globalAlpha = .5; x.beginPath(); x.arc(90, 90, 24, 0, Math.PI * 2); x.stroke(); x.globalAlpha = 1;
+  x.fillStyle = '#74E3B5'; x.beginPath(); x.arc(104, 78, 15, 0, Math.PI * 2); x.fill();
+  $('#touchIcon').href = c.toDataURL('image/png');
+})();
+$('#gateBtn').onclick = async () => { await enableMotion(); $('#gate').classList.add('hide'); };
+initHero();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
