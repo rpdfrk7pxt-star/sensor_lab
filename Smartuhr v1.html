@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Uhr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&family=Share+Tech+Mono&family=Rajdhani:wght@500;700&family=Audiowide&family=Michroma&display=swap" rel="stylesheet">
+<style>
+:root{--bg1:#04060d;--bg2:#0a1428;--fg:#eaffff;--acc:#00e5ff;--glow:1;--font:'Orbitron',monospace}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{overflow:hidden;background:radial-gradient(ellipse at 50% 40%,var(--bg2),var(--bg1) 72%);color:var(--fg);font-family:var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default}
+body.idle{cursor:none}
+#grid{position:fixed;inset:0;pointer-events:none;opacity:.09;background-image:linear-gradient(var(--acc) 1px,transparent 1px),linear-gradient(90deg,var(--acc) 1px,transparent 1px);background-size:64px 64px;-webkit-mask-image:radial-gradient(ellipse at center,#000 10%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 10%,transparent 75%);animation:drift 12s linear infinite}
+@keyframes drift{to{background-position:64px 64px}}
+#scan{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(transparent 0 2px,rgba(0,0,0,.28) 2px 3px)}
+body.nogrid #grid,body.noscan #scan{display:none}
+#time{position:relative;white-space:nowrap;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;color:var(--fg);text-shadow:0 0 calc(10px*var(--glow)) var(--acc),0 0 calc(36px*var(--glow)) var(--acc),0 0 calc(90px*var(--glow)) var(--acc)}
+#time .c{animation:blink 1s steps(1) infinite;color:var(--acc)}
+body.noblink #time .c{animation:none}
+@keyframes blink{50%{opacity:.15}}
+#date{margin-top:.5em;color:var(--acc);letter-spacing:.25em;text-shadow:0 0 calc(14px*var(--glow)) var(--acc);white-space:nowrap}
+#prog{margin-top:1.4em;height:4px;background:color-mix(in srgb,var(--acc) 18%,transparent);border-radius:4px;overflow:hidden}
+#prog i{display:block;height:100%;width:0;background:var(--acc);box-shadow:0 0 calc(14px*var(--glow)) var(--acc)}
+body.nodate #date,body.noprog #prog{display:none}
+#panel{position:fixed;left:50%;bottom:18px;transform:translate(-50%,0);width:min(94vw,860px);padding:14px 16px;background:rgba(8,12,22,.82);backdrop-filter:blur(14px);border:1px solid color-mix(in srgb,var(--acc) 45%,transparent);border-radius:14px;font:500 13px/1.3 'Rajdhani',system-ui,sans-serif;color:#dfeaf5;display:flex;flex-direction:column;gap:12px;transition:opacity .35s,transform .35s;z-index:5}
+body.idle #panel{opacity:0;transform:translate(-50%,24px);pointer-events:none}
+#themes{display:flex;flex-wrap:wrap;gap:8px}
+#themes button{width:34px;height:34px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+#themes button.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.row{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center}
+.row label{display:flex;align-items:center;gap:8px;font-size:14px}
+input[type=range]{accent-color:var(--acc);width:130px}
+select{background:#0d1626;color:#fff;border:1px solid #2b3a52;border-radius:6px;padding:4px 8px;font:inherit;font-size:14px}
+input[type=checkbox]{accent-color:var(--acc);width:16px;height:16px}
+#hint{opacity:.55;font-size:12px}
+@media (prefers-reduced-motion:reduce){#grid{animation:none}}
+</style>
+</head>
+<body>
+<div id="grid"></div><div id="scan"></div>
+<div id="time">00:00:00</div>
+<div id="date"></div>
+<div id="prog"><i></i></div>
+
+<div id="panel">
+  <div id="themes"></div>
+  <div class="row">
+    <label>Größe <input type="range" id="size" min="20" max="100" step="1"></label>
+    <label>Leuchten <input type="range" id="glow" min="0" max="200" step="5"></label>
+    <label>Schrift <select id="font"></select></label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="sec"> Sekunden</label>
+    <label><input type="checkbox" id="h24"> 24 Stunden</label>
+    <label><input type="checkbox" id="date_"> Datum</label>
+    <label><input type="checkbox" id="prog_"> Sekundenbalken</label>
+    <label><input type="checkbox" id="grid_"> Raster</label>
+    <label><input type="checkbox" id="scan_"> Scanlines</label>
+    <label><input type="checkbox" id="blink"> Blinkender Doppelpunkt</label>
+  </div>
+  <div id="hint">F oder Doppelklick = Vollbild · Menü erscheint bei Mausbewegung</div>
+</div>
+
+<script>
+const THEMES=[
+ {n:'Cyan',bg1:'#04060d',bg2:'#0a1428',fg:'#eaffff',acc:'#00e5ff'},
+ {n:'Magenta',bg1:'#0a0310',bg2:'#1d0a2e',fg:'#fff0fb',acc:'#ff2bd6'},
+ {n:'Matrix',bg1:'#010a04',bg2:'#04200e',fg:'#d8ffe4',acc:'#00ff5a'},
+ {n:'Amber',bg1:'#0a0600',bg2:'#241300',fg:'#ffeccc',acc:'#ffa400'},
+ {n:'Rot',bg1:'#0a0203',bg2:'#2a070b',fg:'#ffe6e6',acc:'#ff2a3d'},
+ {n:'Violett',bg1:'#05030f',bg2:'#150d33',fg:'#efe9ff',acc:'#8a5cff'},
+ {n:'Blau',bg1:'#02050f',bg2:'#06173d',fg:'#e8f0ff',acc:'#2f7bff'},
+ {n:'Gelb',bg1:'#080800',bg2:'#1c1c02',fg:'#fffde0',acc:'#f2ff00'},
+ {n:'Eis',bg1:'#0b1118',bg2:'#1b2a38',fg:'#ffffff',acc:'#9fd8ff'},
+ {n:'Sunset',bg1:'#0c0310',bg2:'#3a0f2a',fg:'#fff1e6',acc:'#ff7a45'},
+ {n:'Mono',bg1:'#050505',bg2:'#151515',fg:'#ffffff',acc:'#bdbdbd'},
+ {n:'Hell',bg1:'#e9eef5',bg2:'#ffffff',fg:'#0b1b33',acc:'#0a63ff'}
+];
+const FONTS=[
+ {n:'Orbitron',css:"'Orbitron',monospace",w:.82},
+ {n:'Share Tech Mono',css:"'Share Tech Mono',monospace",w:.6},
+ {n:'Rajdhani',css:"'Rajdhani',sans-serif",w:.5},
+ {n:'Audiowide',css:"'Audiowide',sans-serif",w:.8},
+ {n:'Michroma',css:"'Michroma',sans-serif",w:.95}
+];
+const DEF={theme:0,font:0,size:92,glow:100,sec:true,h24:true,date_:true,prog_:true,grid_:true,scan_:true,blink:true};
+let S=Object.assign({},DEF);
+try{Object.assign(S,JSON.parse(localStorage.getItem('uhr')||'{}'))}catch(e){}
+const $=id=>document.getElementById(id), root=document.documentElement.style, B=document.body;
+const save=()=>{try{localStorage.setItem('uhr',JSON.stringify(S))}catch(e){}};
+
+// Menü bauen
+THEMES.forEach((t,i)=>{const b=document.createElement('button');b.title=t.n;b.style.background=`linear-gradient(135deg,${t.bg2},${t.acc})`;b.onclick=()=>{S.theme=i;apply();save()};$('themes').appendChild(b)});
+FONTS.forEach((f,i)=>{const o=document.createElement('option');o.value=i;o.textContent=f.n;$('font').appendChild(o)});
+
+function apply(){
+  const t=THEMES[S.theme], f=FONTS[S.font];
+  root.setProperty('--bg1',t.bg1);root.setProperty('--bg2',t.bg2);root.setProperty('--fg',t.fg);root.setProperty('--acc',t.acc);
+  root.setProperty('--font',f.css);root.setProperty('--glow',S.glow/100);
+  [...$('themes').children].forEach((b,i)=>b.classList.toggle('on',i===S.theme));
+  $('size').value=S.size;$('glow').value=S.glow;$('font').value=S.font;
+  ['sec','h24','date_','prog_','grid_','scan_','blink'].forEach(k=>$(k).checked=S[k]);
+  B.classList.toggle('nodate',!S.date_);B.classList.toggle('noprog',!S.prog_);
+  B.classList.toggle('nogrid',!S.grid_);B.classList.toggle('noscan',!S.scan_);B.classList.toggle('noblink',!S.blink);
+  tick();
+}
+$('size').oninput=e=>{S.size=+e.target.value;apply();save()};
+$('glow').oninput=e=>{S.glow=+e.target.value;apply();save()};
+$('font').onchange=e=>{S.font=+e.target.value;apply();save()};
+['sec','h24','date_','prog_','grid_','scan_','blink'].forEach(k=>$(k).onchange=e=>{S[k]=e.target.checked;apply();save()});
+
+const p2=n=>String(n).padStart(2,'0');
+function tick(){
+  const d=new Date(); let h=d.getHours(); if(!S.h24) h=h%12||12;
+  const hh=S.h24?p2(h):String(h), mm=p2(d.getMinutes()), ss=p2(d.getSeconds());
+  const colon='<span class="c">:</span>';
+  $('time').innerHTML=hh+colon+mm+(S.sec?colon+ss:'');
+  document.title=`${hh}:${mm}${S.sec?':'+ss:''}`;
+  $('date').textContent=d.toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('prog').firstElementChild.style.width=((d.getSeconds()*1000+d.getMilliseconds())/600)+'%';
+  fit();
+}
+function fit(){
+  const w=FONTS[S.font].w, digits=hhLen()+2+(S.sec?2:0), colons=S.sec?2:1;
+  const em=digits*w+colons*w*.55;
+  const fs=Math.min(innerWidth*.94/em, innerHeight*.55)*S.size/100;
+  $('time').style.fontSize=fs+'px';
+  $('date').style.fontSize=Math.max(12,fs*.15)+'px';
+  $('prog').style.width=Math.min(innerWidth*.9,em*fs*.9)+'px';
+}
+const hhLen=()=>$('time').textContent.split(':')[0].length;
+addEventListener('resize',fit);
+
+// Menü ausblenden bei Ruhe
+let idleT; function wake(){B.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>B.classList.add('idle'),3000)}
+['mousemove','mousedown','touchstart','keydown'].forEach(ev=>addEventListener(ev,wake));wake();
+// Vollbild
+function fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
+addEventListener('dblclick',e=>{if(!e.target.closest('#panel'))fs()});
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='f'&&!/SELECT|INPUT/.test(e.target.tagName))fs()});
+
+apply();
+setInterval(tick,100);
+</script>
+</body>
+</html>
